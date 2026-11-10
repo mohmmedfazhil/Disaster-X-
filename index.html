@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DisasterX | Intelligent Emergency Response & Disaster Management</title>
+  <link rel="icon" type="image/jpeg" href="logo.jpg" />
+  
+  <!-- Leaflet CSS & JS for OpenGPS (GIS) Mapping -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="/src/tailwind.css" />
+</head>
+<body class="bg-[#060913] text-slate-100 min-h-screen flex flex-col font-sans selection:bg-blue-600 selection:text-white">
+
+  <!-- MAIN NAVIGATION BAR (With Official disasterX Globe Logo) -->
+  <header class="border-b border-white/[0.08] bg-[#060913]/95 backdrop-blur sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-16">
+      
+      <!-- Brand Logo with official user-uploaded logo.jpg -->
+      <div class="flex items-center space-x-3 cursor-pointer" onclick="app.switchView('home')">
+        <img src="logo.jpg" alt="disasterX Logo" class="w-8 h-8 rounded-full object-cover bg-white p-0.5 border border-white/20 shadow-sm" />
+        <span class="text-base font-bold tracking-tight text-white">disaster<span class="text-blue-500 font-extrabold">X</span></span>
+      </div>
+
+      <!-- Desktop Nav -->
+      <nav class="hidden md:flex items-center space-x-7 text-xs font-medium text-slate-400">
+        <button data-nav="home" class="hover:text-white transition text-white font-semibold">Home</button>
+        <button data-nav="report" data-role="citizen" class="hover:text-white transition">Report Incident</button>
+        <button data-nav="gis" data-role="admin" class="hover:text-white transition">Command Center</button>
+        <button data-nav="admin" data-role="admin" class="hover:text-white transition">Administration</button>
+        <button data-nav="rescue" data-role="rescue" class="hover:text-white transition">Rescue Team</button>
+        <button data-nav="ai-hub" class="hover:text-white transition">Rescue mate AI</button>
+      </nav>
+
+      <!-- Right Action Items -->
+      <div class="flex items-center space-x-3">
+        <!-- Interactive Pop-up Login Button in Navbar -->
+        <button onclick="app.openLoginModal('signin')" id="user-session-badge" class="text-xs text-slate-300 hover:text-white font-medium px-3 py-1.5 rounded-lg border border-white/[0.1] hover:border-white/[0.25] transition flex items-center">
+          <i data-lucide="user" class="w-3.5 h-3.5 mr-1.5 text-sky-400"></i>
+          <span>Sign In / Admin</span>
+        </button>
+        <button onclick="app.signOut()" id="session-signout" class="hidden text-xs text-slate-400 hover:text-white">Sign out</button>
+
+        <button onclick="app.switchView('report')" class="btn-pill-white text-xs py-2 px-4 shadow-lg shadow-white/5">
+          Report Emergency <span>&rarr;</span>
+        </button>
+
+        <!-- Mobile Hamburger Toggle -->
+        <button onclick="app.toggleMobileMenu()" class="md:hidden p-2 rounded-lg text-slate-400 hover:text-white border border-slate-800">
+          <i data-lucide="menu" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Drawer -->
+    <div id="mobile-menu" class="hidden md:hidden border-b border-white/[0.08] bg-[#080D1A] px-4 py-3 space-y-2 text-xs">
+      <button data-nav="home" class="block w-full text-left py-2 text-slate-300 hover:text-white">Home</button>
+      <button data-nav="report" data-role="citizen" class="block w-full text-left py-2 text-slate-300 hover:text-white">Report Incident</button>
+      <button data-nav="gis" data-role="admin" class="block w-full text-left py-2 text-slate-300 hover:text-white">Command Center (GIS)</button>
+      <button data-nav="admin" data-role="admin" class="block w-full text-left py-2 text-slate-300 hover:text-white">Administration</button>
+      <button data-nav="rescue" data-role="rescue" class="block w-full text-left py-2 text-slate-300 hover:text-white">Rescue Team Portal</button>
+      <button data-nav="ai-hub" class="block w-full text-left py-2 text-slate-300 hover:text-white">Rescue mate AI</button>
+      <div class="pt-2 border-t border-slate-800 flex justify-between items-center">
+        <button onclick="app.openLoginModal('signin')" class="text-sky-400 font-medium">User Login</button>
+        <button onclick="app.signOut()" data-role="authenticated" class="hidden text-slate-300 font-medium">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN VIEWPORT -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ================= VIEW 1: HOME PAGE ================= -->
+    <section id="view-home" class="view-section space-y-10">
+      
+      <!-- HERO -->
+      <div class="text-center max-w-3xl mx-auto pt-4 pb-2 space-y-4">
+        <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-slate-900/90 border border-white/[0.08] text-[11px] text-slate-400 font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>OpenStreetMap · Device location available when permitted</span>
+        </div>
+
+        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white leading-[1.12]">
+          Faster, smarter emergency response with <span class="font-editorial text-slate-100 font-normal">Rescue mate AI</span>
+        </h1>
+        
+        <p class="text-slate-400 text-xs sm:text-sm leading-relaxed max-w-2xl mx-auto">
+          Coordinate emergency intake, map incidents and nearby hospitals, and get practical response guidance in one place.
+        </p>
+
+        <div class="flex items-center justify-center gap-3 pt-2">
+          <button onclick="app.switchView('report')" class="btn-pill-white text-xs">
+            Report Emergency <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+          </button>
+          <button data-role="admin" onclick="app.switchView('gis')" class="btn-pill-dark text-xs">
+            Open Command Center <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+
+      <section data-role="citizen" class="clean-card max-w-5xl mx-auto p-4 grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+        <div>
+          <span class="text-[10px] font-mono uppercase text-sky-300">Citizen Portal</span>
+          <h2 class="mt-1 text-sm font-semibold text-white">Report an emergency or request help</h2>
+          <p class="mt-1 text-[11px] text-slate-400">Smart SOS finds your current GPS location. You choose whether to call or share it.</p>
+          <button onclick="app.switchView('report')" class="btn-pill-white mt-3 text-xs">Report Incident →</button>
+        </div>
+        <div class="rounded-lg border border-red-900/60 bg-red-950/20 p-3 space-y-2">
+          <div class="flex items-center gap-2 text-xs font-semibold text-red-200"><i data-lucide="siren" class="w-4 h-4"></i> Smart SOS</div>
+          <p data-sos-status class="text-[10px] text-slate-300">Tap to get a fresh location fix.</p>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="app.triggerSmartSos()" class="rounded-lg bg-red-600 px-3 py-2 text-[11px] font-semibold text-white hover:bg-red-500">Find my location</button>
+            <a data-sos-call href="tel:112" class="rounded-lg border border-red-500/50 px-3 py-2 text-[11px] font-semibold text-red-100">Call ambulance / emergency · 112</a>
+            <a data-sos-share hidden class="rounded-lg border border-slate-600 px-3 py-2 text-[11px] text-slate-200">Share by SMS</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- FLOATING COMMAND CENTER MOCKUP -->
+      <div data-role="admin" class="mockup-window overflow-hidden max-w-5xl mx-auto">
+        <div class="bg-[#091122] border-b border-white/[0.08] px-4 py-2.5 flex items-center justify-between text-xs">
+          <div class="flex items-center space-x-3">
+            <div class="flex space-x-1.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-700"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-700"></span>
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-700"></span>
+            </div>
+            <div class="flex items-center space-x-4 pl-3 border-l border-slate-800 text-[11px] text-slate-400 font-medium">
+              <span class="text-white font-semibold flex items-center"><i data-lucide="phone-call" class="w-3 h-3 mr-1 text-sky-400"></i> Active Queue</span>
+              <span class="hover:text-white cursor-pointer" onclick="app.switchView('admin')">Incidents</span>
+              <span class="hover:text-white cursor-pointer" onclick="app.switchView('gis')">GIS Tracking</span>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2 text-[10px] font-mono">
+            <span class="badge-clean badge-clean-low"><i data-lucide="map" class="w-3 h-3 mr-1"></i> OpenStreetMap / Leaflet</span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 h-[440px]">
+          <!-- Queue (4 cols) -->
+          <div class="md:col-span-4 bg-[#080D1A] border-r border-white/[0.08] p-3 flex flex-col h-full overflow-hidden">
+            <div class="pb-2 border-b border-slate-800 flex items-center justify-between text-[11px]">
+              <span class="font-semibold text-white">Live Incident Stream</span>
+              <span class="text-slate-500 font-mono">Auto-Triage</span>
+            </div>
+            <div id="gis-incident-queue" class="flex-1 overflow-y-auto space-y-1.5 mt-2 pr-1"></div>
+          </div>
+
+          <!-- Map (8 cols) -->
+          <div class="md:col-span-8 relative h-full">
+            <div id="command-center-map" class="w-full h-full"></div>
+            
+            <div class="absolute bottom-4 left-4 z-[400] max-w-xs clean-card p-3 text-xs space-y-1 shadow-2xl">
+              <div class="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                <span>GIS REAL-TIME ENGINE</span>
+                <span id="gps-map-status" class="text-amber-400">Waiting for GPS permission…</span>
+              </div>
+              <p class="text-slate-300 text-[11px]">Allow location access to show your device position. GPS requires HTTPS or localhost.</p>
+              <span class="text-[10px] text-sky-400 pt-0.5 block">Live location updates while this page is open.</span>
+              <a id="gps-maps-link" hidden target="_blank" rel="noopener noreferrer" class="text-[10px] text-sky-400 hover:underline pt-0.5 block">Open live location in Google Maps ↗</a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EMERGENCY CATEGORIES (Round 1 Feature 2) -->
+      <div data-role="admin" class="space-y-3 pt-2">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-xs font-bold text-white uppercase tracking-wider">Supported Emergency Categories</h3>
+            <p class="text-[11px] text-slate-400">Direct municipal triage categories supported by DisasterX</p>
+          </div>
+          <button onclick="app.switchView('admin')" class="text-xs text-slate-400 hover:text-white">View Database &rarr;</button>
+        </div>
+        <div id="home-category-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5"></div>
+      </div>
+
+      <!-- RECENT STREAM -->
+      <div data-role="admin" class="space-y-2.5">
+        <h3 class="text-xs font-bold text-white uppercase tracking-wider">Recent Incident Feed</h3>
+        <div id="home-recent-incidents" class="space-y-2"></div>
+      </div>
+
+    </section>
+
+    <!-- ================= VIEW 2: REPORT EMERGENCY FORM ================= -->
+    <section id="view-report" class="view-section hidden space-y-5">
+      <div class="border-b border-white/[0.08] pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <span class="text-[10px] font-mono uppercase text-sky-400">Emergency Intake</span>
+          <h2 class="text-xl font-bold text-white mt-0.5">Report Incident with Real-Time Location</h2>
+          <p class="text-xs text-slate-400">Use your current GPS location or place the incident pin on the map.</p>
+        </div>
+        <div class="flex items-center space-x-2">
+          <button type="button" onclick="app.requestLiveGpsLocation()" id="btn-get-gps" class="btn-pill-dark text-xs py-1.5 px-3">
+            <i data-lucide="crosshair" class="w-3.5 h-3.5 mr-1.5"></i> Update Real-Time GPS
+          </button>
+        </div>
+      </div>
+
+      <form id="emergency-report-form" class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div class="lg:col-span-7 space-y-4">
+          <div class="clean-card p-4 space-y-3">
+            
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-300">Incident Title *</label>
+              <input type="text" id="form-incident-title" required placeholder="e.g. 3-Car Pileup with Trapped Passengers" class="w-full bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="space-y-1">
+                <label class="text-xs font-semibold text-slate-300">Emergency Category *</label>
+                <select id="form-incident-category" required class="w-full bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none">
+                  <option value="Fire Emergency">🔥 Fire Emergency</option>
+                  <option value="Road Accident">🚗 Road Accident</option>
+                  <option value="Medical Emergency">💓 Medical Emergency</option>
+                  <option value="Flood">🌊 Flood</option>
+                  <option value="Building Collapse">🏢 Building Collapse</option>
+                  <option value="Other Emergencies">⚠️ Other Emergencies</option>
+                </select>
+              </div>
+
+              <div class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <label class="text-xs font-semibold text-slate-300">Severity Level *</label>
+                  <span id="auto-severity-badge" class="badge-clean badge-clean-medium">Auto-Triage Active</span>
+                </div>
+                <select id="form-incident-severity" required class="w-full bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none">
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-300">Number of People Affected / Injured *</label>
+              <input type="number" id="form-incident-people" min="0" value="1" required class="w-28 bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none" />
+            </div>
+
+            <div class="space-y-1">
+              <label class="text-xs font-semibold text-slate-300">Emergency Narrative *</label>
+              <textarea id="form-incident-desc" rows="3" required placeholder="Describe what happened, hazards present..." class="w-full bg-[#080D1A] border border-slate-800 rounded-lg p-2.5 text-xs text-white focus:outline-none"></textarea>
+            </div>
+          </div>
+
+          <!-- Optional photo evidence -->
+          <div class="clean-card p-4 space-y-2">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-semibold text-white">Accident Photo Proof</h4>
+              <span class="text-[10px] font-mono text-cyan-400 flex items-center">
+                <i data-lucide="image" class="w-3 h-3 mr-1"></i> Optional evidence
+              </span>
+            </div>
+            
+            <div class="border border-dashed border-slate-800 hover:border-slate-600 rounded-lg p-3 text-center cursor-pointer" onclick="document.getElementById('form-incident-photo').click()">
+              <input type="file" id="form-incident-photo" accept="image/*" class="hidden" />
+              <div class="text-xs text-slate-400">Click to upload photo evidence (JPG, PNG, WEBP)</div>
+              <div class="text-[10px] text-slate-500 mt-0.5">A local vision model can describe visible incident clues. It cannot prove authenticity or diagnose injuries.</div>
+            </div>
+            <div id="photo-preview-container"></div>
+          </div>
+
+          <!-- Reporter -->
+          <div class="clean-card p-4 space-y-2">
+            <h4 class="text-xs font-semibold text-white">Reporter Contact (Optional)</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input type="text" id="form-reporter-name" placeholder="Full Name" class="bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none" />
+              <input type="text" id="form-reporter-contact" placeholder="Phone Number" class="bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Map -->
+        <div class="lg:col-span-5 space-y-4">
+          <div class="clean-card p-4 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <h4 class="text-xs font-semibold text-white">Real-Time GIS Location Pin</h4>
+              <span id="gps-status-indicator" class="text-[10px] text-amber-400">Waiting for GPS permission…</span>
+            </div>
+            <p class="text-[9px] text-slate-500">If GPS fails: allow location for this site and in device settings. Indoors or on desktop, drag the pin or enter the address manually.</p>
+
+            <input type="text" id="form-incident-location" required placeholder="Street address or sector" class="w-full bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none" />
+            <input type="text" id="form-incident-nearby" placeholder="Nearby landmarks" class="w-full bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none" />
+
+            <div id="report-picker-map" class="h-64 w-full rounded-lg overflow-hidden border border-slate-800"></div>
+            <div class="flex flex-wrap gap-x-3 gap-y-1 text-[9px] text-slate-400">
+              <span><b class="text-sky-300">H</b> Government</span><span><b class="text-violet-300">H</b> Private</span><span><b class="text-slate-300">H</b> Unclassified</span>
+            </div>
+            <div class="flex items-center justify-between gap-2"><span data-hospital-status class="text-[9px] text-slate-400">Waiting for current location…</span><button type="button" onclick="app.loadNearbyHospitals(true)" class="text-[9px] text-sky-300 hover:underline">Refresh pins</button></div>
+            <div id="hospital-nearby-user-list" class="max-h-40 overflow-y-auto space-y-2 rounded-lg border border-slate-800 p-2"></div>
+            <div class="rounded-lg border border-red-900/50 bg-red-950/15 p-3 space-y-2">
+              <div class="text-[11px] font-semibold text-red-200">Smart SOS</div>
+              <p data-sos-status class="text-[10px] text-slate-300">Get your current location before calling or sharing.</p>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" onclick="app.triggerSmartSos()" class="rounded-lg bg-red-600 px-3 py-2 text-[10px] font-semibold text-white">Find my location</button>
+                <a data-sos-call href="tel:112" class="rounded-lg border border-red-500/50 px-3 py-2 text-[10px] text-red-100">Call ambulance / emergency · 112</a>
+                <a data-sos-share hidden class="rounded-lg border border-slate-600 px-3 py-2 text-[10px] text-slate-200">Share by SMS</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="rounded-lg border border-amber-800/50 bg-amber-950/20 p-3 space-y-2" aria-live="polite">
+            <h4 class="text-[11px] font-semibold text-amber-200">Safety guidance</h4>
+            <ul id="incident-safety-advice-list" class="list-disc pl-4 space-y-1 text-[10px] leading-relaxed text-slate-300"></ul>
+            <p class="text-[9px] text-slate-500">General first aid only. Call emergency services for immediate danger and follow dispatcher instructions.</p>
+          </div>
+          <button type="submit" class="w-full btn-pill-white text-xs py-3 justify-center">
+            Transmit Emergency Report &rarr;
+          </button>
+        </div>
+      </form>
+      <section id="report-submission-result" class="hidden clean-card max-w-3xl mx-auto p-5 space-y-4" aria-live="polite">
+        <div>
+          <p class="text-[10px] uppercase tracking-wide text-emerald-300">Report saved on this device</p>
+          <h3 class="mt-1 text-lg font-semibold text-white">Incident <span id="submitted-incident-id"></span></h3>
+          <p class="mt-1 text-xs text-slate-400">This demo stores reports in this browser. Contact emergency services directly for an urgent response.</p>
+        </div>
+        <div class="rounded-lg border border-amber-800/50 bg-amber-950/20 p-3 space-y-2">
+          <h4 class="text-xs font-semibold text-amber-200">Safety steps while help is coming</h4>
+          <ul id="submitted-safety-advice" class="list-disc pl-4 space-y-1 text-[11px] leading-relaxed text-slate-300"></ul>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <a href="tel:112" class="rounded-lg bg-red-600 px-4 py-2 text-xs font-semibold text-white">Call emergency services · 112</a>
+          <button id="report-another-button" type="button" class="rounded-lg border border-slate-600 px-4 py-2 text-xs text-white">Report another incident</button>
+        </div>
+      </section>
+    </section>
+
+    <!-- ================= VIEW 3: FULL COMMAND CENTER ================= -->
+    <section id="view-gis" data-role="admin" class="view-section hidden space-y-4">
+      <div class="flex items-center justify-between border-b border-white/[0.08] pb-3">
+        <div>
+          <span class="text-[10px] font-mono uppercase text-sky-400">Real-Time GIS Operations</span>
+          <h2 class="text-xl font-bold text-white">Emergency Command Center (ECC)</h2>
+        </div>
+        <div class="flex items-center space-x-2">
+          <span class="badge-clean badge-clean-low"><i data-lucide="map" class="w-3.5 h-3.5 mr-1"></i> OpenStreetMap</span>
+          <button onclick="app.switchView('report')" class="btn-pill-white text-xs py-1.5 px-3">
+            New Intake &rarr;
+          </button>
+        </div>
+      </div>
+
+      <div id="gis-map-layout" class="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[650px]">
+        <div id="gis-map-frame" class="lg:col-span-8 clean-card p-2 relative h-full">
+          <div id="command-center-map-full" class="w-full h-full rounded-lg"></div>
+          <div class="absolute bottom-4 left-4 z-[400] rounded-lg border border-slate-700 bg-slate-950/90 p-2.5 text-[10px] text-slate-300 space-y-1.5">
+            <div class="font-semibold text-white">Map legend</div>
+            <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-sky-400 mr-1.5"></span>Government hospital</div>
+            <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-violet-400 mr-1.5"></span>Private hospital</div>
+            <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-slate-400 mr-1.5"></span>Ownership unclassified</div>
+            <div><span class="inline-flex w-4 h-4 items-center justify-center rounded-full bg-sky-400 text-slate-900 mr-1">R</span>Response team · dotted line to active incident</div>
+          </div>
+        </div>
+        <div class="lg:col-span-4 clean-card p-4 flex flex-col h-full overflow-y-auto">
+          <div class="mb-4 rounded-xl border border-slate-800 bg-slate-950/60 p-3 space-y-2">
+            <div class="flex items-center justify-between gap-2">
+              <h3 class="text-xs font-semibold text-white">Nearby Hospitals</h3>
+              <button onclick="app.loadNearbyHospitals(true)" class="text-[10px] text-sky-300 hover:underline">Refresh</button>
+            </div>
+            <p id="hospital-status" data-hospital-status class="text-[10px] text-slate-400">Waiting for live location…</p>
+            <div id="hospital-nearby-list" class="space-y-2"></div>
+            <p class="text-[9px] leading-relaxed text-slate-500">Hospital names and ownership are based on OpenStreetMap tags; listings may be incomplete or outdated.</p>
+          </div>
+          <div id="gis-triage-panel"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= VIEW 4: ADMIN DASHBOARD ================= -->
+    <section id="view-admin" data-role="admin" class="view-section hidden space-y-5">
+      <div class="border-b border-white/[0.08] pb-3 flex items-center justify-between">
+        <div>
+          <span class="text-[10px] font-mono uppercase text-sky-400">Administrative Oversight</span>
+          <h2 class="text-xl font-bold text-white">Incident Registry & Operations</h2>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="clean-card p-3.5">
+          <span class="text-[10px] font-mono text-slate-400 uppercase">Total Logged</span>
+          <div class="text-2xl font-bold text-white mt-0.5" id="stat-total-incidents">0</div>
+        </div>
+        <div class="clean-card p-3.5">
+          <span class="text-[10px] font-mono text-red-400 uppercase">Critical</span>
+          <div class="text-2xl font-bold text-red-400 mt-0.5" id="stat-critical-incidents">0</div>
+        </div>
+        <div class="clean-card p-3.5">
+          <span class="text-[10px] font-mono text-amber-400 uppercase">Pending</span>
+          <div class="text-2xl font-bold text-amber-400 mt-0.5" id="stat-pending-incidents">0</div>
+        </div>
+        <div class="clean-card p-3.5">
+          <span class="text-[10px] font-mono text-emerald-400 uppercase">Resolved</span>
+          <div class="text-2xl font-bold text-emerald-400 mt-0.5" id="stat-resolved-incidents">0</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="clean-card p-3"><span class="text-[10px] text-slate-400 uppercase">Teams Available</span><div id="stat-teams-available" class="text-xl font-bold text-emerald-300">0</div></div>
+        <div class="clean-card p-3"><span class="text-[10px] text-slate-400 uppercase">Teams Busy</span><div id="stat-teams-busy" class="text-xl font-bold text-amber-300">0</div></div>
+        <div class="clean-card p-3"><span class="text-[10px] text-slate-400 uppercase">Assigned Incidents</span><div id="stat-assigned-incidents" class="text-xl font-bold text-sky-300">0</div></div>
+        <div class="clean-card p-3"><span class="text-[10px] text-slate-400 uppercase">Unassigned High Priority</span><div id="stat-unassigned-critical" class="text-xl font-bold text-red-300">0</div></div>
+      </div>
+
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <section class="clean-card p-4 space-y-3">
+          <div><h3 class="text-sm font-semibold text-white">Response Team Roster</h3><p class="text-[10px] text-slate-400">Manage capabilities, availability, and map positions.</p></div>
+          <form id="response-team-form" class="grid grid-cols-2 gap-2">
+            <input id="new-team-id" required placeholder="Team ID" class="rounded bg-slate-900 border border-slate-700 px-2 py-2 text-xs text-white" />
+            <input id="new-team-name" required placeholder="Team name" class="rounded bg-slate-900 border border-slate-700 px-2 py-2 text-xs text-white" />
+            <select id="new-team-category" class="rounded bg-slate-900 border border-slate-700 px-2 py-2 text-xs text-white"><option>Fire</option><option>Medical</option><option>Rescue</option><option>Police</option><option>Multi-purpose</option></select>
+            <button class="rounded bg-sky-700 px-3 py-2 text-xs text-white">Add team</button>
+            <input id="new-team-lat" required type="number" step="any" placeholder="Latitude" class="rounded bg-slate-900 border border-slate-700 px-2 py-2 text-xs text-white" />
+            <input id="new-team-lon" required type="number" step="any" placeholder="Longitude" class="rounded bg-slate-900 border border-slate-700 px-2 py-2 text-xs text-white" />
+            <input id="new-team-members" required min="1" type="number" value="1" placeholder="Team members" class="rounded bg-slate-900 border border-slate-700 px-2 py-2 text-xs text-white" />
+          </form>
+          <div id="response-team-roster" class="space-y-2"></div>
+        </section>
+        <section class="clean-card p-4 space-y-3">
+          <div><h3 class="text-sm font-semibold text-white">Priority Dispatch Queue</h3><p class="text-[10px] text-slate-400">Ranked by severity, people affected, category, and report age.</p></div>
+          <div id="dispatch-priority-queue" class="space-y-2"></div>
+        </section>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="clean-card p-4 space-y-2">
+          <h4 class="text-xs font-semibold text-white">Incidents by Category</h4>
+          <div class="h-52 flex items-center justify-center">
+            <canvas id="chart-categories"></canvas>
+          </div>
+        </div>
+        <div class="clean-card p-4 space-y-2">
+          <h4 class="text-xs font-semibold text-white">Severity Breakdown</h4>
+          <div class="h-52 flex items-center justify-center">
+            <canvas id="chart-severity"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="clean-card p-4 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800">
+          <h4 class="text-xs font-semibold text-white">Incident Management Records</h4>
+          <div class="flex items-center space-x-2 text-xs">
+            <select id="admin-filter-category" class="bg-slate-900 border border-slate-800 rounded px-2 py-1 text-slate-300 text-xs">
+              <option value="All">All Categories</option>
+              <option value="Fire Emergency">Fire</option>
+              <option value="Road Accident">Road</option>
+              <option value="Medical Emergency">Medical</option>
+              <option value="Flood">Flood</option>
+              <option value="Building Collapse">Collapse</option>
+              <option value="Other Emergencies">Other</option>
+            </select>
+            <select id="admin-filter-severity" class="bg-slate-900 border border-slate-800 rounded px-2 py-1 text-slate-300 text-xs">
+              <option value="All">All Severity</option>
+              <option value="Critical">Critical</option>
+              <option value="High">High</option>
+              <option value="Medium">Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="text-slate-400 border-b border-slate-800 text-[10px] font-mono uppercase">
+                <th class="py-2 px-3">ID</th>
+                <th class="py-2 px-3">Title & Location</th>
+                <th class="py-2 px-3">Category</th>
+                <th class="py-2 px-3">Severity</th>
+                <th class="py-2 px-3">Priority</th>
+                <th class="py-2 px-3">Response Team</th>
+                <th class="py-2 px-3">Status</th>
+                <th class="py-2 px-3">Time</th>
+                <th class="py-2 px-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-incidents-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-rescue" data-role="rescue" class="view-section hidden space-y-5">
+      <div id="rescue-react-root"></div>
+    </section>
+
+    <!-- ================= VIEW 6: RESCUE MATE AI HUB ================= -->
+    <section id="view-ai-hub" class="view-section hidden space-y-5">
+      <div class="border-b border-white/[0.08] pb-3 flex items-center justify-between">
+        <div>
+          <span class="text-[10px] font-mono uppercase text-sky-400">Emergency Protocols</span>
+          <h2 class="text-xl font-bold text-white">Rescue mate AI Hub</h2>
+        </div>
+        <button onclick="app.toggleFloatingAi()" class="btn-pill-white text-xs py-1.5 px-3">
+          Open Assistant &rarr;
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="clean-card p-4 space-y-2">
+          <span class="badge-clean badge-clean-critical">ROAD ACCIDENT / TRAUMA</span>
+          <h4 class="text-xs font-semibold text-white">Severe crash first aid</h4>
+          <p class="text-[11px] text-slate-400 leading-relaxed">Call emergency services. Protect yourself from traffic and fire. Do not move someone with possible head, neck, or back injury unless the scene is unsafe or CPR/bleeding control is needed. Monitor breathing and control severe bleeding.</p>
+          <button onclick="app.askAiPrompt('Give first aid for a severe road accident')" class="text-[10px] text-sky-300 hover:underline">Ask Rescue mate for steps ↗</button>
+        </div>
+        <div class="clean-card p-4 space-y-2">
+          <span class="badge-clean badge-clean-critical">CARDIAC / CPR</span>
+          <h4 class="text-xs font-semibold text-white">Cardiopulmonary Resuscitation</h4>
+          <p class="text-[11px] text-slate-400 leading-relaxed">Compress chest center 100-120 BPM, 2 inches deep. Full recoil. Deploy AED.</p>
+        </div>
+        <div class="clean-card p-4 space-y-2">
+          <span class="badge-clean badge-clean-high">HEMORRHAGE</span>
+          <h4 class="text-xs font-semibold text-white">Severe Bleeding & Tourniquets</h4>
+          <p class="text-[11px] text-slate-400 leading-relaxed">Continuous direct pressure. Apply commercial tourniquet 2-3 inches above wound.</p>
+        </div>
+        <div class="clean-card p-4 space-y-2">
+          <span class="badge-clean badge-clean-medium">STRUCTURAL / FIRE</span>
+          <h4 class="text-xs font-semibold text-white">Evacuation & Smoke Survival</h4>
+          <p class="text-[11px] text-slate-400 leading-relaxed">Crawl 12-24 inches from floor. Check doors before opening. Never take elevators.</p>
+        </div>
+      </div>
+      <p class="text-[10px] text-slate-500">For life-threatening injuries, call your local emergency number now. These steps are general first aid guidance, not a substitute for emergency dispatch or trained responders.</p>
+    </section>
+
+  </main>
+
+  <!-- FLOATING RESCUE MATE AI WIDGET -->
+  <div class="fixed bottom-6 right-6 z-50">
+    <button onclick="app.toggleFloatingAi()" class="p-3 rounded-full bg-white text-slate-900 shadow-xl hover:bg-slate-200 transition">
+      <i data-lucide="bot" class="w-5 h-5"></i>
+    </button>
+
+    <div id="floating-ai-window" class="hidden absolute bottom-14 right-0 w-80 sm:w-96 clean-card shadow-2xl flex flex-col h-[450px] overflow-hidden border border-white/[0.12]">
+      <div class="p-3 bg-[#080D1A] border-b border-slate-800 flex items-center justify-between text-xs">
+        <div><span class="font-bold text-white flex items-center"><i data-lucide="bot" class="w-4 h-4 mr-1.5 text-blue-500"></i> Rescue mate AI</span><span id="ai-engine-status" class="block pl-5 text-[9px] text-slate-400">MedLlama2 · checking local service…</span></div>
+        <button onclick="app.toggleFloatingAi()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div id="floating-ai-messages" class="flex-1 p-3 overflow-y-auto space-y-2.5 text-xs bg-[#060913]">
+        <div class="p-2.5 rounded-lg bg-slate-800 text-slate-200 border border-slate-700 text-xs">
+          Hello! I am <strong>Rescue mate AI</strong>. Ask me for first aid protocols or incident response guidance.
+        </div>
+      </div>
+      <div class="p-2 bg-[#080D1A] border-t border-slate-800 flex items-center space-x-2">
+        <input type="text" id="floating-ai-input" placeholder="Ask AI or describe incident..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none" />
+        <button id="floating-ai-send" class="btn-pill-white text-xs py-1.5 px-3">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- POP-UP AUTHENTICATION MODAL (USER SIGN IN, SIGN UP & ADMIN LOGIN) -->
+  <div id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="clean-card max-w-md w-full p-6 space-y-5 border-slate-700 shadow-2xl">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div class="flex items-center space-x-2">
+          <img src="logo.jpg" alt="Logo" class="w-6 h-6 rounded-full object-cover bg-white p-0.5" />
+          <h3 id="login-modal-title" class="text-sm font-bold text-white">DisasterX Portal Access</h3>
+        </div>
+        <button onclick="app.closeLoginModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+
+      <!-- Tabs: Sign In, Sign Up, Admin, Rescue -->
+      <div class="grid grid-cols-2 border-b border-slate-800 text-xs font-medium">
+        <button id="auth-tab-signin" onclick="app.switchAuthTab('signin')" class="py-2 text-white border-b-2 border-blue-500 font-semibold">User Sign In</button>
+        <button id="auth-tab-signup" onclick="app.switchAuthTab('signup')" class="py-2 text-slate-400 hover:text-white">User Sign Up</button>
+        <button id="auth-tab-admin" onclick="app.switchAuthTab('admin')" class="py-2 text-slate-400 hover:text-white">Admin Login</button>
+        <button id="auth-tab-rescue" onclick="app.switchAuthTab('rescue')" class="py-2 text-slate-400 hover:text-white">Rescue Team</button>
+      </div>
+
+      <!-- TAB 1: User Sign In -->
+      <form id="auth-content-signin" onsubmit="app.handleUserSignIn(event)" class="space-y-3">
+        <div class="p-2.5 rounded-lg bg-sky-950/30 border border-sky-800/40 text-[11px] text-sky-200 flex items-center justify-between gap-2">
+          <span>Demo: <strong>citizen@disasterx.org</strong> / <strong>citizen123</strong></span>
+          <button type="button" onclick="app.quickUserFill()" class="underline font-bold text-sky-300">Fill demo</button>
+        </div>
+        <div class="space-y-1">
+          <label class="text-[11px] text-slate-300">Email Address</label>
+          <input type="email" id="signin-email" required value="citizen@disasterx.org" class="w-full bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-[11px] text-slate-300">Password</label>
+          <input type="password" id="signin-password" required value="citizen123" class="w-full bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none" />
+        </div>
+        <button type="submit" class="w-full btn-pill-white text-xs py-2.5 justify-center mt-2">
+          Sign In as Civilian &rarr;
+        </button>
+      </form>
+
+      <!-- TAB 2: User Sign Up -->
+      <form id="auth-content-signup" onsubmit="app.handleUserSignUp(event)" class="space-y-3 hidden">
+        <div class="space-y-1">
+          <label class="text-[11px] text-slate-300">Full Name</label>
+          <input type="text" id="signup-name" required placeholder="Jane Doe" class="w-full bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-[11px] text-slate-300">Email Address</label>
+          <input type="email" id="signup-email" required placeholder="you@domain.com" class="w-full bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-[11px] text-slate-300">Password</label>
+          <input type="password" required placeholder="••••••••" class="w-full bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none" />
+        </div>
+        <button type="submit" class="w-full btn-pill-white text-xs py-2.5 justify-center mt-2">
+          Create DisasterX Account &rarr;
+        </button>
+      </form>
+
+      <!-- TAB 3: Admin Login -->
+      <form id="auth-content-admin" onsubmit="app.handleAdminLogin(event)" class="space-y-3 hidden">
+        <div class="p-2.5 rounded-lg bg-amber-950/30 border border-amber-800/40 text-[11px] text-amber-300 flex items-center justify-between">
+          <span>ECC Emergency Dispatcher Console</span>
+          <button type="button" onclick="app.quickAdminFill()" class="underline font-bold text-sky-400">1-Click Auto Fill</button>
+        </div>
+        <div class="space-y-1">
+          <label class="text-[11px] text-slate-300">Administrator Email</label>
+          <input type="email" id="admin-login-email" required value="admin@disasterx.org" class="w-full bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none font-mono" />
+        </div>
+        <div class="space-y-1">
+          <label class="text-[11px] text-slate-300">Command Secret Key</label>
+          <input type="password" id="admin-login-password" required value="admin123" class="w-full bg-[#080D1A] border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none font-mono" />
+        </div>
+        <button type="submit" class="w-full btn-pill-white text-xs py-2.5 justify-center mt-2">
+          Access Emergency Command Center &rarr;
+        </button>
+      </form>
+
+      <form id="auth-content-rescue" onsubmit="app.handleRescueLogin(event)" class="hidden space-y-3">
+        <div class="rounded-lg border border-emerald-800/50 bg-emerald-950/25 p-3 text-[11px] text-emerald-200">Demo team: <strong>TEAM-FIRE-01</strong> / <strong>rescue123</strong></div>
+        <label class="block space-y-1"><span class="text-[11px] text-slate-300">Team ID</span><input id="rescue-team-id" required value="TEAM-FIRE-01" class="w-full rounded bg-[#080D1A] border border-slate-800 px-3 py-2 text-xs text-white" /></label>
+        <label class="block space-y-1"><span class="text-[11px] text-slate-300">Team password</span><input id="rescue-team-password" type="password" required value="rescue123" class="w-full rounded bg-[#080D1A] border border-slate-800 px-3 py-2 text-xs text-white" /></label>
+        <button class="w-full btn-pill-white text-xs py-2.5 justify-center">Open Team Portal</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- DETAILS MODAL -->
+  <div id="incident-detail-modal" class="hidden"></div>
+
+  <!-- FOOTER (With Official Logo, Tagline & Sign In) -->
+  <footer class="mt-auto border-t border-white/[0.08] bg-[#060913] py-8 text-xs text-slate-500">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center space-x-3">
+          <img src="logo.jpg" alt="disasterX Logo" class="w-10 h-10 rounded-full object-cover bg-white p-0.5 border border-white/20" />
+          <div>
+            <span class="text-white font-bold tracking-tight text-sm">disasterX</span>
+            <p class="text-[11px] text-slate-300 mt-0.5 tracking-widest uppercase font-mono font-bold">
+              DETECT &bull; RESPOND &bull; PROTECT
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-6 text-[11px]">
+          <button onclick="app.openLoginModal('signin')" id="footer-login-btn" class="hover:text-white transition">Sign In</button>
+          <span class="text-slate-600">|</span>
+          <span class="text-slate-400">Emergency Hotlines: <strong>911 / 112</strong></span>
+        </div>
+      </div>
+      <div class="border-t border-white/[0.05] pt-4 flex justify-between items-center text-[10px] text-slate-600">
+        <span>&copy; 2026 DisasterX Emergency Response Platform.</span>
+        <span>OpenStreetMap · GPS permission required</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="rescue_mate.js"></script>
+  <script src="app.js"></script>
+  <script type="importmap">
+    {"imports":{"react":"https://esm.sh/react@18.3.1","react-dom/client":"https://esm.sh/react-dom@18.3.1/client?external=react","chart.js/auto":"https://esm.sh/chart.js@4.4.7/auto"}}
+  </script>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
